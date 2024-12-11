@@ -10,8 +10,7 @@ def DRAN(
     par_value: float,
     total_days: int,
     index_starting_price: float,
-    increase_rate: float,
-    decrease_rate: float,
+    sigma: float,
     upper_bound: float,
     lower_bound: float,
     movements_per_day: int = 1,
@@ -25,8 +24,7 @@ def DRAN(
         par_value (float): Par value of the bond.
         total_days (int): Total number of days for the simulation.
         index_starting_price (float): Starting price of the index.
-        increase_rate (float): Daily increase rate.
-        decrease_rate (float): Daily decrease rate.
+        sigma (float): Deviation per day
         upper_bound (float): Upper boundary for the index.
         lower_bound (float): Lower boundary for the index.
         movements_per_day (int): Number of movements per day.
@@ -40,34 +38,36 @@ def DRAN(
         - Number of days the index stayed within bounds (int).
     """
     # adjust total days to account for 0 indexing
-    
+
     coupon_rate = annual_coupon_rate / 365
     total_steps = total_days * movements_per_day
 
     # Adjusted increase and decrease rates
     if binomial_with_growth:
         # is wrong, need to fix
-        adjusted_increase_rate = np.exp(increase_rate / np.sqrt(1 / movements_per_day))
-        adjusted_decrease_rate = np.exp(decrease_rate / np.sqrt(1 / movements_per_day))
+        adjusted_increase_rate = np.exp(sigma * np.sqrt(movements_per_day))
+        adjusted_decrease_rate = np.exp(-sigma * np.sqrt(movements_per_day))
     else:
-        adjusted_increase_rate = increase_rate / np.sqrt(movements_per_day)
-        adjusted_decrease_rate = decrease_rate / np.sqrt(movements_per_day)
-    
+        adjusted_increase_rate = sigma / np.sqrt(movements_per_day)
+        adjusted_decrease_rate = -sigma / np.sqrt(movements_per_day)
+
     # Simulate index movements
-    movements = np.random.choice([adjusted_increase_rate, adjusted_decrease_rate], total_steps)
+    movements = np.random.choice(
+        [adjusted_increase_rate, adjusted_decrease_rate], total_steps
+    )
     index_list = [index_starting_price]
 
     for movement in movements:
         if binomial_with_growth:
             # Binomial tree with growth
-            next_value = index_list[-1] * (1 + movement)
+            next_value = index_list[-1] * movement
         else:
             # Standard binomial tree
             next_value = index_list[-1] + movement
 
         index_list.append(np.round(next_value, 4))
 
-    in_bound_day_count = 0 
+    in_bound_day_count = 0
     # Check each day
     for day in range(total_days):
         start_idx = 1 + day * movements_per_day
@@ -101,24 +101,24 @@ def plot_DRAN(index_lists: List[List[float]], params: Dict):
     total_days = params["total_days"]
 
     plt.figure(figsize=(10, 6))
-    
+
     # Generate x-values based on the total days and movements per day
     total_points = total_days * movements_per_day
     x_values = np.linspace(0, total_days, total_points + 1)
-    
+
     plt.fill_between(x_values, lower_bound, upper_bound, color="lightgray", alpha=0.5)
 
     for index_list in index_lists:
-        
+
         day_indices = np.linspace(0, total_days, len(index_list))
-        
-        # Plot the index values 
-        plt.plot(day_indices, index_list, color='black', alpha=0.6)
+
+        # Plot the index values
+        plt.plot(day_indices, index_list, color="black", alpha=0.6)
 
     # Plot bounds
     plt.axhline(y=upper_bound, color="red", linestyle="--", label="Upper Bound")
     plt.axhline(y=lower_bound, color="blue", linestyle="--", label="Lower Bound")
-    
+
     # Set labels and title
     plt.xlabel("Day")
     plt.ylabel("Index Value")
@@ -162,7 +162,9 @@ def mc_DRAN(
     return returns, in_bound_day_counts
 
 
-def summarize_statistics(data: List[float], title: str, plot: bool = False, barplot: bool = False):
+def summarize_statistics(
+    data: List[float], title: str, plot: bool = False, barplot: bool = False
+):
     """
     Prints and optionally plots basic statistics for a dataset.
 
@@ -179,7 +181,7 @@ def summarize_statistics(data: List[float], title: str, plot: bool = False, barp
     print(f"  Mean: {mean:.4f}")
     print(f"  Standard Deviation: {std:.4f}")
     print(f"  Median: {median:.4f}")
-    
+
     print(f"\n{title} Distribution:")
     print(pd.DataFrame(data).value_counts().sort_index())
 
@@ -187,22 +189,35 @@ def summarize_statistics(data: List[float], title: str, plot: bool = False, barp
         plt.figure(figsize=(12, 5))
         if barplot:
             from collections import Counter
+
             data_counts = Counter(data)
-            plt.bar(data_counts.keys(), data_counts.values(), color="skyblue", edgecolor="black")
+            plt.bar(
+                data_counts.keys(),
+                data_counts.values(),
+                color="skyblue",
+                edgecolor="black",
+            )
             plt.title(f"{title} - Barplot")
         else:
             plt.hist(data, bins=20, alpha=0.7, color="blue", edgecolor="black")
             plt.title(f"{title} - Histogram")
         plt.xlabel("Value")
         plt.ylabel("Frequency")
-        
+
         plt.tight_layout()
         plt.show()
-    
-    
-def run_mc_DRAN(iterations: int, show_plot: bool = True, summary: bool = False, **params):
+
+
+def run_mc_DRAN(
+    iterations: int, show_plot: bool = True, summary: bool = False, **params
+):
     returns, in_bound_day_counts = mc_DRAN(iterations, show_plot, **params)
 
     if summary:
         summarize_statistics(returns, title="DRAN Returns", plot=True, barplot=False)
-        summarize_statistics(in_bound_day_counts, title="DRAN In Bound Day Counts (in days and days^2)", plot=True, barplot=True)
+        summarize_statistics(
+            in_bound_day_counts,
+            title="DRAN In Bound Day Counts (in days)",
+            plot=True,
+            barplot=True,
+        )

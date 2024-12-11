@@ -1,5 +1,6 @@
 import numpy as np
 import sympy as sp
+import random
 
 
 class Dran_KOKI_Increase:
@@ -114,13 +115,14 @@ class Dran_KOKI_Multiply:
         annual_coupon_rate: float = 3.65,
         par_value: float = 1000,
         total_days: int = 7,
-        index_starting_price: float = 1,
-        daily_multiplier_mean: float = 1,
-        daily_multiplier_sigma: float = 0.5,
-        upper_bound: float = 1.5,
-        lower_bound: float = 0.5,
-        ko_boundary: float = 1.7,
-        ki_boundary: float = 0.3,
+        index_starting_price: float = 100,
+        epsilon_sigma=0.01,
+        epsilon_boundary: float = 0,
+        daily_multiplier_sigma: float = 0.1,
+        upper_bound: float = 120,
+        lower_bound: float = 80,
+        ko_boundary: float = 135,
+        ki_boundary: float = 65,
         ki_annual_coupon_rate: float = 3.65 / 2,
         movements_per_day: int = 1,
     ):
@@ -150,7 +152,6 @@ class Dran_KOKI_Multiply:
         self.total_days = total_days
         self.total_steps = total_days * movements_per_day
         self.index_starting_price = index_starting_price
-        self.daily_multiplier_mean = daily_multiplier_mean
         self.daily_multiplier_sigma = daily_multiplier_sigma
         self.upper_bound = upper_bound
         self.lower_bound = lower_bound
@@ -158,11 +159,12 @@ class Dran_KOKI_Multiply:
         self.ko_boundary = ko_boundary
         self.movements_per_day = movements_per_day
 
-        self.multiplier_mean_per_step, self.multiplier_sigma_per_step = (
-            calculate_x_mean_variance_corrected(
-                movements_per_day, daily_multiplier_mean, daily_multiplier_sigma**2
-            )
+        self.multiplier_mean_per_step = (
+            np.exp(daily_multiplier_sigma / np.sqrt(movements_per_day)),
+            np.exp(-daily_multiplier_sigma / np.sqrt(movements_per_day)),
         )
+        self.epsilon_boundary = epsilon_boundary / movements_per_day
+        self.epsilon_sigma = epsilon_sigma / movements_per_day
 
         self.index_price_array = np.array([self.index_starting_price])
         self.total_return = 0
@@ -184,11 +186,14 @@ class Dran_KOKI_Multiply:
         return self.current_index_price * action
 
     def daily_step(self):
-        actions = np.random.normal(
-            self.multiplier_mean_per_step,
-            self.multiplier_sigma_per_step,
-            self.movements_per_day,
+        actions = np.random.choice(
+            self.multiplier_mean_per_step, self.movements_per_day
         )
+
+        epsilons = np.random.normal(0, self.epsilon_sigma, self.movements_per_day).clip(
+            -self.epsilon_boundary, self.epsilon_boundary
+        )
+        actions += epsilons
         index_price_in_day = self.current_index_price * np.cumprod(actions)
         self.current_index_price = index_price_in_day[-1]
 
@@ -255,5 +260,5 @@ def calculate_x_mean_variance_corrected(n, mean_y, var_y):
     )
 
     mean = solutions[0][0]
-    variance = solutions[0][1]
-    return mean, variance
+    sigma = solutions[0][1]
+    return mean, sigma

@@ -12,8 +12,7 @@ def DRAN_withKOKI(
     par_value: float,
     total_days: int,
     index_starting_price: float,
-    increase_rate: float,
-    decrease_rate: float,
+    sigma: float,
     upper_bound: float,
     lower_bound: float,
     ko_boundary: float,
@@ -30,8 +29,7 @@ def DRAN_withKOKI(
         par_value (float): Par value of the bond.
         total_days (int): Total number of days for the simulation.
         index_starting_price (float): Starting price of the index.
-        increase_rate (float): Daily increase rate.
-        decrease_rate (float): Daily decrease rate.
+        sigma (float): Deviation per day
         upper_bound (float): Upper boundary for the index.
         lower_bound (float): Lower boundary for the index.
         ko_boundary (float): KO boundary for early stopping.
@@ -54,11 +52,11 @@ def DRAN_withKOKI(
     # Adjusted increase and decrease rates
     if binomial_with_growth:
         # is wrong, need to fix
-        adjusted_increase_rate = np.exp(increase_rate / np.sqrt(1 / movements_per_day))
-        adjusted_decrease_rate = np.exp(decrease_rate / np.sqrt(1 / movements_per_day))
+        adjusted_increase_rate = np.exp(sigma / np.sqrt(movements_per_day))
+        adjusted_decrease_rate = np.exp(-sigma / np.sqrt(movements_per_day))
     else:
-        adjusted_increase_rate = increase_rate / np.sqrt(movements_per_day)
-        adjusted_decrease_rate = decrease_rate / np.sqrt(movements_per_day)
+        adjusted_increase_rate = sigma * np.sqrt(movements_per_day)
+        adjusted_decrease_rate = -sigma * np.sqrt(movements_per_day)
 
     # Simulate index movements
     movements = np.random.choice(
