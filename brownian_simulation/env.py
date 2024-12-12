@@ -179,12 +179,6 @@ class Dran_KOKI_Multiply:
         self.KI_TOUCHED = False
         self.KO_TOUCHED = False
 
-    def step(self):
-        action = np.random.normal(
-            self.multiplier_mean_per_step, self.multiplier_sigma_per_step, 1
-        )
-        return self.current_index_price * action
-
     def daily_step(self):
         actions = np.random.choice(
             self.multiplier_mean_per_step, self.movements_per_day
