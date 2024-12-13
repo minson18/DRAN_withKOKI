@@ -130,7 +130,7 @@ class Dran_KOKI_Multiply:
         Simulates daily random asset movements and calculates return and profit considering KO and KI boundaries.
 
         Parameters:
-            annual_coupon_rate (float): Annual coupon rate as a fraction (e.g., 0.05 for 5%).
+            annual_coupon_rate (float): Annual coupon rate as a fraction (e.g. 5 for 5%).
             par_value (float): Par value of the bond.
             total_days (int): Total number of days for the simulation.
             index_starting_price (float): Starting price of the index.
